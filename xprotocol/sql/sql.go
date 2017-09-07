@@ -35,21 +35,36 @@ func (xsql *XSql) DealSQLStmtExecute (msgType Mysqlx.ClientMessages_Type, payloa
 	}
 
 	switch msg.GetNamespace() {
-	case "xplugin":
-	case "mysqlx":
+	case "xplugin", "mysqlx":
+		// TODO: 'xplugin' is deprecated, need to send a notice message.
+		xsql.dispatchAdminCmd(msg)
 	case "sql", "":
 		sql := string(msg.GetStmt())
-		rs, err := xsql.ctx.Execute(sql)
-		if err != nil {
-			return err
-		}
-		for _, r := range rs {
-			if err := xsql.writeResultSet(r); err != nil {
-				return err
-			}
+		if err := xsql.executeStmt(sql); err != nil {
+			return errors.Trace(err)
 		}
 	default:
 		return errors.New("unknown namespace")
+	}
+	return nil
+}
+
+func (xsql *XSql) executeStmt (sql string) error {
+	rs, err := xsql.ctx.Execute(sql)
+	if err != nil {
+		return err
+	}
+	for _, r := range rs {
+		if err := xsql.writeResultSet(r); err != nil {
+			return err
+		}
+	}
+	return xsql.sendExecOk()
+}
+
+func (xsql *XSql) sendExecOk() error {
+	if err := xsql.pkt.WritePacket(int32(Mysqlx.ServerMessages_SQL_STMT_EXECUTE_OK), nil); err != nil {
+		return errors.Trace(err)
 	}
 	return nil
 }
@@ -85,7 +100,9 @@ func (xsql *XSql) writeResultSet(r driver.ResultSet) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
-		xsql.pkt.WritePacket(int32(Mysqlx.ServerMessages_RESULTSET_COLUMN_META_DATA), data)
+		if err := xsql.pkt.WritePacket(int32(Mysqlx.ServerMessages_RESULTSET_COLUMN_META_DATA), data); err != nil {
+			return errors.Trace(err)
+		}
 	}
 
 	// Write rows.
