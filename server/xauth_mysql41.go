@@ -2,10 +2,10 @@ package server
 
 import (
 	"net"
+	"github.com/ngaut/log"
 	"github.com/pingcap/tidb/mysql"
 	xutil "github.com/pingcap/tidb/xprotocol/util"
 	"github.com/pingcap/tidb/util/auth"
-	"github.com/pingcap/tipb/go-mysqlx/Session"
 	"github.com/pingcap/tidb/util"
 	"github.com/pingcap/tipb/go-mysqlx"
 	"bytes"
@@ -51,29 +51,23 @@ func (spa *saslMysql41Auth) handleStart(mechanism *string, data []byte, initial_
 func (spa *saslMysql41Auth) handleContinue(data []byte) *Response {
 	r := Response{}
 
-	var msg Mysqlx_Session.AuthenticateContinue
-	err1 := msg.Unmarshal(data)
-	if err1 != nil {
-		r.status = Failed
-		r.data = xutil.ErrXBadMessage.GetMsg()
-		r.errCode = uint16(xutil.ErrXBadMessage.GetCode())
-	}
-
 	if spa.m_state == S_waiting_response {
 		var err *Mysqlx.Error
 		var ctx driver.QueryCtx
 
-		dbname, user, passwd := spa.extractNullTerminatedElement(msg.GetAuthData())
+		dbname, user, passwd := spa.extractNullTerminatedElement(data)
+		log.Infof("[YUSP] %s %s %s", string(dbname), string(user), string(passwd))
 		xcc := spa.xauth.xcc
 		xcc.dbname = string(dbname)
 		xcc.user = string(user)
 		// Open session and do auth
 
-		ctx, err1 = xcc.server.driver.OpenCtx(uint64(xcc.connectionID), xcc.capability, uint8(xcc.collation), xcc.dbname)
+		ctx, err1 := xcc.server.driver.OpenCtx(uint64(xcc.connectionID), xcc.capability, uint8(xcc.collation), xcc.dbname)
 		if err1 != nil {
 			err = xutil.ErrXNoSuchUser
 		}
 		xcc.xsession = xprotocol.CreateXSession(&xcc.alloc, xcc.connectionID, ctx, xcc.pkt, xcc.server.skipAuth())
+		xcc.ctx, err1 = xcc.server.driver.OpenCtx(uint64(xcc.connectionID), xcc.capability, uint8(xcc.collation), xcc.dbname)
 
 		if !spa.xauth.xcc.server.skipAuth() {
 			// Do Auth
@@ -107,6 +101,8 @@ func (spa *saslMysql41Auth) handleContinue(data []byte) *Response {
 }
 
 func (spa *saslMysql41Auth) extractNullTerminatedElement(data []byte) ([]byte, []byte, []byte) {
+	log.Infof("[YUSP] %v", data)
+	log.Infof("[YUSP] %s", data)
 	slices := bytes.Split(data, []byte{0})
 	return slices[0], slices[1], slices[2]
 }

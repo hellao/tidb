@@ -92,7 +92,7 @@ func (xa *XAuth) HandleAuthMessage(msgType Mysqlx.ClientMessages_Type, payload [
 			return err
 		}
 
-		r = xa.authHandler.handleContinue(data.AuthData)
+		r = xa.authHandler.handleContinue(data.GetAuthData())
 	default:
 		errCode := util.ErXBadMessage
 		content := "Invalid message"
@@ -162,6 +162,7 @@ func (xa *XAuth) SendAuthContinue(value *string) error {
 		AuthData: []byte(*value),
 	}
 
+	log.Infof("[YUSP] %s", msg.String())
 	data, err := msg.Marshal()
 	if err != nil {
 		return err
