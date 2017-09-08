@@ -21,12 +21,14 @@ import (
 	"github.com/ngaut/log"
 	"github.com/pingcap/tidb/terror"
 	"github.com/pingcap/tidb/util"
+	xutil "github.com/pingcap/tidb/xprotocol/util"
 	"github.com/pingcap/tidb/xprotocol/xpacketio"
 	"github.com/pingcap/tidb/util/arena"
 	"github.com/pingcap/tipb/go-mysqlx"
 	"github.com/pingcap/tidb/xprotocol/capability"
 	"github.com/pingcap/tidb/driver"
 	"github.com/pingcap/tidb/xprotocol"
+	"github.com/pingcap/tidb/mysql"
 )
 
 // mysqlXClientConn represents a connection between server and client,
@@ -70,6 +72,7 @@ func (xcc *mysqlXClientConn) Run() {
 			if terror.ErrorEqual(err, terror.ErrResultUndetermined) {
 				log.Errorf("[%d] result undetermined error, close this connection %s",
 					xcc.connectionID, errors.ErrorStack(err))
+				return
 			} else if terror.ErrorEqual(err, terror.ErrCritical) {
 				log.Errorf("[%d] critical error, stop the server listener %s",
 					xcc.connectionID, errors.ErrorStack(err))
@@ -77,10 +80,10 @@ func (xcc *mysqlXClientConn) Run() {
 				case xcc.server.stopListenerCh <- struct{}{}:
 				default:
 				}
+				return
 			}
 			log.Warnf("[%d] dispatch error: %s", xcc.connectionID, err)
 			xcc.writeError(err)
-			return
 		}
 	}
 }
@@ -212,7 +215,24 @@ func (xcc *mysqlXClientConn) dispatch(tp int32, payload []byte) error {
 func (xcc *mysqlXClientConn) flush() error {
 	return xcc.pkt.Flush()
 }
-func (xcc *mysqlXClientConn) writeError(e error) {
+
+func (xcc *mysqlXClientConn) writeError(e error) error {
+	var (
+		m  *mysql.SQLError
+		te *terror.Error
+		ok bool
+	)
+	originErr := errors.Cause(e)
+	if te, ok = originErr.(*terror.Error); ok {
+		m = te.ToSQLError()
+	} else {
+		m = mysql.NewErrf(mysql.ErrUnknown, "%s", e.Error())
+	}
+	errMsg, err := xutil.ErrorMessage(m.Code, m.Message, m.State).Marshal()
+	if err != nil {
+		return err
+	}
+	return xcc.pkt.WritePacket(int32(Mysqlx.ServerMessages_ERROR), errMsg)
 }
 
 func (xcc *mysqlXClientConn) isKilled() bool {

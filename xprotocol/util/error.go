@@ -59,15 +59,15 @@ const (
 )
 
 var (
-	ErrXBadMessage = ErrorMessage(ErXBadMessage, "Invalid message")
-	ErrXNoSuchUser = ErrorMessage(mysql.ErrNoSuchUser, "Invalid user or password")
-	ErrXAccessDenied = ErrorMessage(mysql.ErrAccessDenied, "Invalid user or password")
+	ErrXBadMessage = ErrorMessage(ErXBadMessage, "Invalid message", mysql.DefaultMySQLState)
+	ErrXNoSuchUser = ErrorMessage(mysql.ErrNoSuchUser, "Invalid user or password", mysql.DefaultMySQLState)
+	ErrXAccessDenied = ErrorMessage(mysql.ErrAccessDenied, "Invalid user or password", mysql.DefaultMySQLState)
 )
 
 // ErrorMessage returns Mysqlx Error.
-func ErrorMessage(errcode uint16, msg string) *Mysqlx.Error {
+func ErrorMessage(errcode uint16, msg string, state string) *Mysqlx.Error {
 	code := uint32(errcode)
-	sqlState := mysql.DefaultMySQLState
+	sqlState := state
 	errMsg := Mysqlx.Error {
 		Severity: Mysqlx.Error_ERROR.Enum(),
 		Code: &code,

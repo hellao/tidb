@@ -6,6 +6,7 @@ import (
 	"github.com/pingcap/tipb/go-mysqlx/Connection"
 	"github.com/pingcap/tipb/go-mysqlx/Datatypes"
 	"github.com/pingcap/tidb/xprotocol/util"
+	"github.com/pingcap/tidb/mysql"
 )
 
 func getCapability(handler Handler) *Mysqlx_Connection.Capability {
@@ -112,5 +113,5 @@ func DealSecCapabilitiesSet (tp Mysqlx.ClientMessages_Type, msg []byte) error {
 
 // CapabilityErrorReport reports capabilities error.
 func CapabilityErrorReport() *Mysqlx.Error {
-	return util.ErrorMessage(5001, "Capability prepare failed for 'tls'")
+	return util.ErrorMessage(5001, "Capability prepare failed for 'tls'", mysql.DefaultMySQLState)
 }
