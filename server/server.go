@@ -151,7 +151,7 @@ func NewServer(cfg *config.Config, driver driver.IDriver, serverType int) (*Serv
 	}
 
 	var err error
-	if cfg.Socket != "" {
+	if (serverType == MysqlProtocol && cfg.Socket != "") || (serverType == MysqlXProtocol && cfg.XSocket != "") {
 		cfg.SkipAuth = true
 		if s.listener, err = net.Listen("unix", socket); err == nil {
 		        log.Infof("Server is running %s Protocol through Socket [%s]", protocol, socket)

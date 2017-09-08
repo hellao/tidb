@@ -78,7 +78,7 @@ func (xcc *mysqlXClientConn) Run() {
 				default:
 				}
 			}
-			log.Warnf("[%d] dispatch error: %s, %s", xcc.connectionID, xcc, err)
+			log.Warnf("[%d] dispatch error: %s", xcc.connectionID, err)
 			xcc.writeError(err)
 			return
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/pingcap/tidb/mysql"
 	"github.com/pingcap/tipb/go-mysqlx"
 	"github.com/juju/errors"
+	"github.com/ngaut/log"
 	"github.com/pingcap/tidb/util/arena"
 	"github.com/pingcap/tidb/util/types"
 )
@@ -40,6 +41,7 @@ func (xsql *XSql) DealSQLStmtExecute (msgType Mysqlx.ClientMessages_Type, payloa
 		xsql.dispatchAdminCmd(msg)
 	case "sql", "":
 		sql := string(msg.GetStmt())
+		log.Infof("[YUSP] %s", sql)
 		if err := xsql.executeStmt(sql); err != nil {
 			return errors.Trace(err)
 		}
